@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mandi-Mausam · Sell today or hold?</title>
+  <meta name="description" content="Live mandi prices and 7-day weather, turned into one sell-or-hold answer for farmers, with sources." />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◐</span>
+      <div>
+        <h1>Mandi-Mausam</h1>
+        <p class="tag">Sell today or hold? Live mandi prices + 7-day weather, every number sourced.</p>
+      </div>
+    </div>
+    <label class="lang">
+      <span class="sr">Answer language</span>
+      <select id="language">
+        <option value="en">English</option>
+        <option value="hi">हिंदी</option>
+        <option value="mr">मराठी</option>
+      </select>
+    </label>
+  </header>
+
+  <main>
+    <section class="card ask" aria-labelledby="ask-h">
+      <h2 id="ask-h">Ask your question</h2>
+      <div class="input-row">
+        <textarea id="question" rows="3" maxlength="600"
+          placeholder="e.g. I have 20 quintals of onion near Lasalgaon. Should I sell today or wait, and where?"></textarea>
+        <button id="mic" class="mic" type="button" aria-label="Speak your question" title="Tap to speak, tap again to stop">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12z"/></svg>
+        </button>
+      </div>
+      <p id="mic-status" class="hint" aria-live="polite"></p>
+
+      <div class="fields">
+        <label>Quantity <small>(quintals)</small>
+          <input id="qty" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 20" />
+        </label>
+        <label>Transport cost <small>(₹ per km, include return trip if charged)</small>
+          <input id="rate" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 40" />
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="ask" class="primary" type="button">Get my answer</button>
+        <button id="example" class="ghost" type="button">Try the Lasalgaon example</button>
+      </div>
+    </section>
+
+    <section id="working" class="card working" hidden aria-live="polite">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>
+        <strong>Checking live data…</strong>
+        <ol class="plan">
+          <li>Find your village</li>
+          <li>Get the 7-day rain and humidity forecast</li>
+          <li>Pull today's official mandi prices nearby</li>
+          <li>Work out the price left after transport</li>
+          <li>Check every number against the data</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="error" class="card error" hidden role="alert"></section>
+
+    <section id="result" hidden>
+      <article class="card verdict">
+        <div class="verdict-head">
+          <span id="rec" class="badge"></span>
+          <span id="grounded" class="pill"></span>
+        </div>
+        <p id="answer" class="answer"></p>
+        <ul id="reasons" class="reasons"></ul>
+        <p id="ask-farmer" class="ask-farmer" hidden></p>
+        <div class="verdict-actions">
+          <button id="listen" class="ghost" type="button">▶ Listen</button>
+          <span id="elapsed" class="hint"></span>
+        </div>
+        <audio id="player" hidden></audio>
+      </article>
+
+      <article class="card">
+        <h3>Nearby mandis <small id="mandi-note"></small></h3>
+        <div class="table-wrap">
+          <table id="mandis">
+            <thead>
+              <tr>
+                <th>#</th><th>Mandi</th><th>Reported</th>
+                <th class="num">Price ₹/qtl</th><th class="num">Distance</th>
+                <th class="num">Transport ₹/qtl</th><th class="num">Net ₹/qtl</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <h3>Next 7 days at your village <small id="weather-note"></small></h3>
+        <div id="weather" class="weather"></div>
+        <p class="hint">Onions store best below 70% humidity. A rainy day is 2.5 mm of rain or more (IMD definition).</p>
+      </article>
+
+      <details class="card how" open>
+        <summary>How I decided</summary>
+        <ol id="trace" class="trace"></ol>
+      </details>
+
+      <article class="card sources">
+        <h3>Sources</h3>
+        <ul id="sources"></ul>
+      </article>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Prototype for the Forge buildathon. Advice is informational; prices come from official Agmarknet reports via data.gov.in and can change during the day.
+  </footer>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
