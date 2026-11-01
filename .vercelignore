@@ -1,0 +1,7 @@
+.venv
+tests
+docs
+scripts
+cache.sqlite3
+.env
+.pytest_cache

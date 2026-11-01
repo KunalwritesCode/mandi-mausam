@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from app import voice
 from app.agent.agent import run_agent
 from app.config import settings
-from app.tools import weather
+from app.tools import mandi, weather
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
 MAX_AUDIO_BYTES = 2_000_000  # about 30 s of compressed speech
@@ -40,10 +40,14 @@ class SpeakRequest(BaseModel):
 def health() -> dict:
     """Liveness plus one real upstream call, so a judge can see the data path is live."""
     w = weather.get_weather_outlook(20.15, 74.23, days=1)  # Lasalgaon, Nashik
+    mp = mandi.ping()
     return {
         "status": "ok",
         "weather_api": "ok" if w.get("ok") else f"down: {w.get('error')}",
+        "weather_source": (w.get("source") or {}).get("name"),
         "weather_fetched_at": (w.get("source") or {}).get("fetched_at"),
+        "mandi_api": "ok" if mp.get("ok") else f"down: {mp.get('error')}",
+        "mandi_fetched_at": mp.get("fetched_at"),
         "configured": {
             "llm": bool(settings.llm_api_key),
             "mandi_prices": bool(settings.data_gov_api_key),

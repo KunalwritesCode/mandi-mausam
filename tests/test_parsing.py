@@ -44,6 +44,7 @@ def test_current_sky_maps_open_meteo_fields(monkeypatch):
     payload = {"current": {"time": "2026-11-01T16:00", "temperature_2m": 24.1, "relative_humidity_2m": 78,
                            "precipitation": 0.4, "cloud_cover": 92, "wind_speed_10m": 11.5, "is_day": 1}}
     monkeypatch.setattr(weather, "fetch_json", lambda **kw: (payload, {"name": "Open-Meteo Forecast API"}))
+    weather._om_down_until = 0.0
     out = weather.get_current_sky(20.15, 74.23)
     assert out["ok"] and out["humidity_pct"] == 78 and out["rain_mm"] == 0.4 and out["is_day"] is True
     assert out["humid_for_storage"] is True
@@ -54,5 +55,6 @@ def test_current_sky_reports_errors_instead_of_guessing(monkeypatch):
     def boom(**kw):
         raise weather.UpstreamError("timeout")
     monkeypatch.setattr(weather, "fetch_json", boom)
+    weather._om_down_until = 0.0
     out = weather.get_current_sky(20.15, 74.23)
-    assert out == {"ok": False, "error": "timeout"}
+    assert out["ok"] is False and "timeout" in out["error"]

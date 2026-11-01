@@ -353,7 +353,7 @@ function renderWeather(w, place) {
         <i style="--h:${h}%"></i><span class="line"></span><b>${num(d.humidity_mean_pct)}%</b>
       </div>
       <span class="when">${dayName(d.date)}</span>
-      <span class="rain">${num(d.rain_mm)} mm<br>${esc(L.rainChance(num(d.rain_chance_pct)))}</span>
+      <span class="rain">${num(d.rain_mm)} mm${d.rain_chance_pct != null ? "<br>" + esc(L.rainChance(num(d.rain_chance_pct))) : ""}</span>
       <span class="risk">${esc(L.risk[d.risk] || d.risk)}</span>
     </div>`;
   }).join("");

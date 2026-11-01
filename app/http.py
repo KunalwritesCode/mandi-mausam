@@ -7,6 +7,7 @@ number came from.
 
 from __future__ import annotations
 
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -17,6 +18,14 @@ from app.cache import cache
 from app.config import settings
 
 USER_AGENT = "MandiMausamAgent/0.1 (Forge hackathon prototype; github.com)"
+
+
+_SECRET = re.compile(r"(api[-_]?key|key|token)=[^&\s'\"]+", re.IGNORECASE)
+
+
+def scrub(text: str) -> str:
+    """Remove API keys from text that may be shown to users (httpx error messages include the full URL)."""
+    return _SECRET.sub(lambda m: f"{m.group(1)}=***", str(text))
 
 
 class UpstreamError(RuntimeError):
@@ -60,14 +69,16 @@ def fetch_json(
             return data, _meta(source_name, url, public_params, fetched_at, from_cache=False)
         except (httpx.HTTPError, ValueError) as exc:  # ValueError: bad JSON
             last_error = exc
+            if isinstance(exc, httpx.HTTPStatusError) and 400 <= exc.response.status_code < 500:
+                break  # 429 / 403 / 404: asking again straight away will not help
             time.sleep(0.6 * (attempt + 1))
 
     if hit:  # stale but real
         meta = _meta(source_name, url, public_params, hit.fetched_at, from_cache=True)
         meta["stale_fallback"] = True
-        meta["error"] = str(last_error)
+        meta["error"] = scrub(last_error)
         return hit.value, meta
-    raise UpstreamError(f"{source_name} unavailable: {last_error}")
+    raise UpstreamError(f"{source_name} unavailable: {scrub(last_error)}")
 
 
 def _meta(name: str, url: str, public_params: dict | None, fetched_at: float, from_cache: bool) -> dict:

@@ -54,6 +54,23 @@ def normalise(record: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def ping() -> dict[str, Any]:
+    """One-record call to the same endpoint, for /api/health: shows whether the host can reach data.gov.in at all."""
+    if not settings.data_gov_api_key:
+        return {"ok": False, "error": "DATA_GOV_IN_API_KEY is not set on the server."}
+    public = {"filters[state.keyword]": "Maharashtra", "filters[commodity]": "Onion"}
+    params = {"api-key": settings.data_gov_api_key, "format": "json", "limit": 1, **public}
+    try:
+        data, src = fetch_json(
+            source_name="data.gov.in – Agmarknet daily mandi prices",
+            url=DATA_GOV_URL.format(rid=settings.mandi_resource_id),
+            params=params, public_params=public, ttl_s=300,
+        )
+    except UpstreamError as exc:
+        return {"ok": False, "error": str(exc)[:240]}
+    return {"ok": True, "records_returned": len(data.get("records") or []), "fetched_at": src["fetched_at"]}
+
+
 def get_mandi_prices(commodity: str, state: str, district: str | None = None) -> dict[str, Any]:
     """Latest reported prices for a commodity in a state (optionally one district)."""
     if not settings.data_gov_api_key:
