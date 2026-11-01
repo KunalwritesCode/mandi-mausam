@@ -71,4 +71,4 @@ def speak(text: str, language: str) -> str:
     audios = resp.json().get("audios") or []
     if not audios:
         raise VoiceError("Text-to-speech returned no audio.")
-    return audios[0]
+    return "".join(audios)

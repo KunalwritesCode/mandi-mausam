@@ -160,4 +160,4 @@ The whole build, including every wrong turn, is in **[The Problem Log](PROBLEM_L
 
 ## Team
 
-Built by a team of three for the Forge GenAI Buildathon (Theme 2: Climate, Resource Infrastructure & Global Supply Resilience). All core logic, the agent workflow and the interface were written during the event. We used Claude as an AI pair-programmer; every member of the team can walk through every file.
+Built by a team of three for the Forge GenAI Buildathon (Theme 2: Climate, Resource Infrastructure & Global Supply Resilience). All core logic, the agent workflow and the interface were written during the event. We used Claude as an AI assistant during the build; every member of the team can walk through every file.

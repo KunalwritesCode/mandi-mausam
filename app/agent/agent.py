@@ -14,7 +14,7 @@ from typing import Any, Callable
 from openai import APIStatusError, APITimeoutError, OpenAI, OpenAIError
 
 from app.agent import guardrails
-from app.agent.prompts import system_prompt
+from app.agent.prompts import LANGUAGES, system_prompt
 from app.config import settings
 from app.tools import geo, mandi, weather
 
@@ -100,16 +100,109 @@ def _llm_error_detail(exc: Exception) -> str:
     return f"AI model error: {exc.__class__.__name__}: {str(exc)[:200]}"
 
 
+_THINK_RE = re.compile(r"<think>.*?(</think>|$)", re.S | re.I)
+
+
 def _parse_json(text: str) -> dict[str, Any] | None:
+    """Pull the JSON object out of a model reply (tolerates <think> blocks and ``` fences)."""
     if not text:
         return None
+    text = _THINK_RE.sub("", text)
     m = re.search(r"\{.*\}", text, flags=re.S)
     if not m:
         return None
     try:
-        return json.loads(m.group(0))
+        out = json.loads(m.group(0))
     except json.JSONDecodeError:
         return None
+    return out if isinstance(out, dict) else None
+
+
+def _llm_view(name: str, result: dict[str, Any]) -> dict[str, Any]:
+    """A lean copy of a tool result for the model: fewer tokens, faster, same facts."""
+    if not isinstance(result, dict):
+        return result
+    if name == "find_place":
+        return {k: result[k] for k in ("found", "name", "district", "state", "lat", "lon", "error") if k in result}
+    if name == "get_weather_outlook":
+        if not result.get("ok"):
+            return {"ok": False, "error": result.get("error")}
+        keep = ("date", "rain_mm", "rain_chance_pct", "humidity_mean_pct", "risk")
+        return {"ok": True, "summary": result.get("summary"), "days": [{k: d.get(k) for k in keep} for d in result.get("days", [])]}
+    if name == "compare_mandis":
+        if not result.get("ok"):
+            return {"ok": False, "error": result.get("error")}
+        keep = ("rank", "market", "district", "arrival_date", "age_days", "stale", "modal_price", "distance_km",
+                "drive_minutes", "transport_per_quintal_rs", "net_price_per_quintal_rs", "net_total_rs")
+        return {
+            "ok": True,
+            **{k: result.get(k) for k in ("commodity", "state", "distance_method", "quantity_quintals",
+                                           "transport_rate_per_km", "transport_cost_known", "coverage_note")},
+            "mandis": [{k: m.get(k) for k in keep} for m in result.get("mandis", [])],
+            "mandis_not_located_count": len(result.get("mandis_not_located") or []),
+        }
+    return result
+
+
+FORMAT_REMINDER = (
+    "Now give your final answer as ONE JSON object only, with no other text. Keys: "
+    '"recommendation" (SELL_NOW, HOLD, NEED_INFO or CANNOT_HELP), "best_mandi" (a market name from the tool data, or null), '
+    '"answer" (3-5 short spoken-style sentences in {language}), "reasons" (list of short strings, each with a number '
+    'from the tool data), "ask_farmer" (one question, or null). Use only numbers from the tool results or my message.'
+)
+
+
+def _finalize(client: OpenAI, messages: list[dict[str, Any]], language: str) -> dict[str, Any] | None:
+    """Re-ask for the final JSON (JSON mode first, then plain) when the first reply was unusable."""
+    reminder = {"role": "user", "content": FORMAT_REMINDER.replace("{language}", LANGUAGES.get(language, "English"))}
+    for kwargs in ({"response_format": {"type": "json_object"}}, {}):
+        try:
+            resp = client.chat.completions.create(
+                model=settings.llm_model,
+                messages=[*messages, reminder],
+                tools=TOOL_SCHEMAS,
+                tool_choice="none",
+                temperature=0,
+                **kwargs,
+                **_extra(),
+            )
+        except OpenAIError:
+            continue
+        parsed = _parse_json(resp.choices[0].message.content or "")
+        if parsed:
+            return parsed
+    return None
+
+
+def _fallback_answer(tr: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """A plain answer built directly from tool data, used only if the model gives nothing usable."""
+    m = tr.get("compare_mandis") or {}
+    rows = m.get("mandis") or []
+    if not m.get("ok") or not rows:
+        return None
+    fresh = [r for r in rows if not r.get("stale")] or rows
+    best = fresh[0]
+    s = (tr.get("get_weather_outlook") or {}).get("summary") or {}
+    name = str(best.get("market", "")).strip()
+    parts = [f"The best reported price near you is {best.get('modal_price'):.0f} rupees per quintal at {name}"
+             + (f", {best['distance_km']} km away" if best.get("distance_km") is not None else "")
+             + (f" (reported {best['arrival_date']})." if best.get("arrival_date") else ".")]
+    has_net = best.get("net_price_per_quintal_rs") is not None
+    if has_net:
+        parts.append(f"After transport you would get about {best['net_price_per_quintal_rs']} rupees per quintal.")
+    if s:
+        parts.append(f"The next 7 days have {s.get('rainy_days')} rainy and {s.get('humid_days')} humid days, "
+                     f"so the storage risk is {s.get('storage_risk')}.")
+    if m.get("coverage_note"):
+        parts.append(m["coverage_note"])
+    risky = s.get("storage_risk") in ("medium", "high")
+    return {
+        "recommendation": "SELL_NOW" if (risky and has_net) else "NEED_INFO",
+        "best_mandi": name or None,
+        "answer": " ".join(parts),
+        "reasons": [f"Price {best.get('modal_price'):.0f} rupees per quintal at {name}"],
+        "ask_farmer": None if has_net else "Tell me your quantity and your transport cost per km so I can work out the price after transport.",
+    }
 
 
 def _summarise_tool(name: str, result: dict[str, Any]) -> str:
@@ -156,6 +249,7 @@ def run_agent(
     ]
     client = _client()
     final_text = ""
+    last_finish = None
 
     for step in range(settings.llm_max_steps):
         try:
@@ -172,6 +266,7 @@ def run_agent(
             return {"ok": False, "error": "The AI model is not responding. Please try again.", "trace": trace}
 
         msg = resp.choices[0].message
+        last_finish = getattr(resp.choices[0], "finish_reason", None)
         # Keep only the standard assistant fields. tool_calls are kept exactly as returned,
         # because Gemini 3 stores its thought signatures inside them. Provider-specific extras
         # (e.g. reasoning_content) are dropped so any OpenAI-compatible server accepts the history.
@@ -228,15 +323,27 @@ def run_agent(
                 }
             )
             messages.append(
-                {"role": "tool", "tool_call_id": call.id, "content": guardrails.compact(result)}
+                {"role": "tool", "tool_call_id": call.id, "content": guardrails.compact(_llm_view(name, result))}
             )
     else:
         trace.append({"step": "limit", "ok": False, "detail": "Step limit reached"})
 
     parsed = _parse_json(final_text)
     if not parsed:
-        trace.append({"step": "format", "ok": False, "detail": "Model answer was not valid JSON"})
-        parsed = {"recommendation": "CANNOT_HELP", "answer": final_text.strip()[:800], "reasons": [], "best_mandi": None}
+        shown = re.sub(r"\s+", " ", _THINK_RE.sub("", final_text)).strip()[:140]
+        trace.append({"step": "format", "ok": False,
+                      "detail": f"First model reply was not usable JSON (finish_reason={last_finish}; reply={shown!r}); asking again"})
+        parsed = _finalize(client, messages, language)
+        if parsed:
+            trace.append({"step": "format", "ok": True, "detail": "Second attempt returned a clean answer"})
+    if not parsed:
+        parsed = _fallback_answer(tool_results)
+        if parsed:
+            trace.append({"step": "format", "ok": True, "detail": "Model gave no usable answer; showing a plain summary built directly from the live data"})
+    if not parsed:
+        parsed = {"recommendation": "CANNOT_HELP", "best_mandi": None, "reasons": [],
+                  "answer": re.sub(r"\s+", " ", _THINK_RE.sub("", final_text)).strip()[:800]
+                  or "Sorry, I could not prepare an answer. Please try again."}
 
     # ---- grounding check, with one self-correction round
     allowed = guardrails.allowed_numbers(

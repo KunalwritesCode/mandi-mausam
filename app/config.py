@@ -37,7 +37,7 @@ class Settings:
             "LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"
         )
     )
-    llm_model: str = field(default_factory=lambda: _env("LLM_MODEL") or _env("GEMINI_MODEL", "gemini-flash-latest"))
+    llm_model: str = field(default_factory=lambda: _env("LLM_MODEL") or _env("GEMINI_MODEL") or ("sarvam-105b" if "sarvam" in _env("LLM_BASE_URL").lower() else "gemini-3.8-flash"))
     llm_max_steps: int = field(default_factory=lambda: int(_env("AGENT_MAX_STEPS", "6")))
     llm_timeout_s: float = field(default_factory=lambda: float(_env("LLM_TIMEOUT_S", "45")))
     # "", "low", "medium", "high" (Gemini 3 models). Empty = model default.

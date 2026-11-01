@@ -77,6 +77,8 @@ function render(d) {
   $("reasons").innerHTML = (d.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("");
   const af = $("ask-farmer"); af.hidden = !d.ask_farmer; af.textContent = d.ask_farmer || "";
   $("elapsed").textContent = `Answered in ${d.elapsed_s}s · ${d.model}`;
+  $("listen").disabled = !d.answer;
+  $("listen-status").textContent = d.answer ? "" : "No answer text to read aloud.";
 
   renderMandis(d.mandis, d.best_mandi);
   renderWeather(d.weather, d.place);
@@ -94,6 +96,7 @@ function renderMandis(m, best) {
   }
   $("mandi-note").textContent = `· ${m.commodity}, ${m.state} · ${m.distance_method === "road" ? "road distance" : "straight-line distance (routing unavailable)"}` +
     (m.transport_cost_known ? "" : " · add quantity and transport cost for net price");
+  const cov = $("coverage"); cov.hidden = !m.coverage_note; cov.textContent = m.coverage_note || "";
   tbody.innerHTML = m.mandis.map((r) => `
     <tr class="${best && r.market === best ? "best" : ""}">
       <td>${r.rank}</td>
@@ -137,17 +140,20 @@ function renderSources(d) {
 }
 
 async function listen() {
-  if (!state.lastAnswer) return;
-  $("listen").disabled = true; $("listen").textContent = "… preparing audio";
+  const status = $("listen-status");
+  if (!state.lastAnswer) { status.textContent = "There is no answer to read aloud yet."; return; }
+  $("listen").disabled = true; status.textContent = "Preparing audio…";
   try {
     const res = await fetch("/api/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: state.lastAnswer, language: lang() }) });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Voice unavailable");
-    const p = $("player"); p.src = `data:audio/wav;base64,${data.audio_base64}`; await p.play();
+    if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Voice is unavailable");
+    const p = $("player"); p.src = `data:audio/wav;base64,${data.audio_base64}`;
+    p.onended = () => { status.textContent = ""; };
+    await p.play(); status.textContent = "Playing…";
   } catch (e) {
-    showError(`Voice playback unavailable: ${e.message}`);
+    status.textContent = `Could not play the audio: ${e.message}`;
   } finally {
-    $("listen").disabled = false; $("listen").textContent = "▶ Listen";
+    $("listen").disabled = false;
   }
 }
 

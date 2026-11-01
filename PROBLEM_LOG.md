@@ -92,7 +92,7 @@ We built Mandi-Mausam between the evening of 31 October and the afternoon of 1 N
 
 | # | When (IST) | What went wrong | Why | What we did | How we know it worked |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 31 Oct, ~10:45 PM | Our AI pair-programmer's sandbox could not reach any outside API. | Its network only allows package downloads. | Ran every live check in a browser and terminal on our own laptop instead. | Open-Meteo returned a real Lasalgaon forecast: 80% chance of rain on 1 Nov. |
+| 1 | 31 Oct, ~10:45 PM | Claude, the AI assistant we used, worked in a sandbox that could not reach any outside API. | That sandbox only allows package downloads. | Ran every live check in a browser and terminal on our own laptop instead. | Open-Meteo returned a real Lasalgaon forecast: 80% chance of rain on 1 Nov. |
 | 2 | 31 Oct, ~10:50 PM | Agmarknet 2.0's price report answered *"Captcha key and captcha value are required."* | The portal protects its price reports with a captcha. | We do not bypass captchas. We used the official data.gov.in API, which publishes the same Agmarknet data with a free key. The Agmarknet mandi and commodity lists, which need no captcha, confirmed the IDs: Onion is 23, Nashik is 361. | See row 3. |
 | 3 | 1 Nov, morning | data.gov.in's "Preview" box stayed blank, and an older copy of the dataset page said its API "does not exist". | Unclear; the preview widget is separate from the API. | Generated our own key and queried the API directly. | Feed updated 11:30 AM IST on 1 Nov; every Maharashtra onion record was dated 01/11/2026. |
 | 4 | 1 Nov, morning | A free community mirror of the same data looked like a good backup. | It had stopped syncing. | Rejected it as a source. | Its own metadata: last fetched 16 Oct 2026. |

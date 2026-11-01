@@ -137,6 +137,14 @@ def compare_mandis(
         r.pop("_straight_km", None)
 
     ranked = net_prices(nearest, quantity_quintals, transport_rate_per_km)
+    coverage_note = None
+    with_km = [r for r in ranked if r.get("distance_km") is not None]
+    if with_km:
+        closest = min(with_km, key=lambda r: r["distance_km"])
+        if closest["distance_km"] > 100:
+            coverage_note = (f"The nearest mandi with a reported price is {str(closest['market']).strip()}, "
+                             f"{closest['distance_km']:.0f} km away (reported {closest['arrival_date']}); "
+                             "no closer mandi has a price on record.")
     return {
         "ok": True,
         "commodity": commodity,
@@ -146,6 +154,7 @@ def compare_mandis(
         "transport_rate_per_km": transport_rate_per_km,
         "transport_cost_known": transport_rate_per_km is not None and quantity_quintals is not None,
         "mandis": ranked,
+        "coverage_note": coverage_note,
         "mandis_not_located": unlocated[:20],
         "sources": [prices["source"], dist.get("source")],
     }
