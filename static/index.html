@@ -3,127 +3,173 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mandi-Mausam · Sell today or hold?</title>
-  <meta name="description" content="Live mandi prices and 7-day weather, turned into one sell-or-hold answer for farmers, with sources." />
+  <title>Mandi-Mausam: sell today or hold?</title>
+  <meta name="description" content="Live mandi prices and 7-day weather, turned into one sell-or-hold answer for onion farmers, with sources." />
+  <meta name="theme-color" content="#1e5b3a" />
+  <link rel="preload" href="/static/fonts/teko-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/static/fonts/fonts.css" />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
+  <a class="skip" href="#question" data-i18n="skip"></a>
+
   <header class="top">
-    <div class="brand">
-      <span class="logo" aria-hidden="true">◐</span>
-      <div>
-        <h1>Mandi-Mausam</h1>
-        <p class="tag">Sell today or hold? Live mandi prices + 7-day weather, every number sourced.</p>
-      </div>
+    <a class="brand" href="/" aria-label="Mandi-Mausam">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+        <ellipse cx="20" cy="22" rx="15" ry="14" />
+        <ellipse cx="20" cy="22" rx="10" ry="14" />
+        <ellipse cx="20" cy="22" rx="4.5" ry="14" />
+        <path d="M20 8 C 19 4, 21 3, 22 1" />
+      </svg>
+      <span>Mandi-Mausam</span>
+    </a>
+    <div class="langs" role="group" data-i18n-aria="langLabel">
+      <button type="button" data-lang="en" lang="en">English</button>
+      <button type="button" data-lang="hi" lang="hi">हिंदी</button>
+      <button type="button" data-lang="mr" lang="mr">मराठी</button>
     </div>
-    <label class="lang">
-      <span class="sr">Answer language</span>
-      <select id="language">
-        <option value="en">English</option>
-        <option value="hi">हिंदी</option>
-        <option value="mr">मराठी</option>
-      </select>
-    </label>
+    <select id="language" hidden aria-hidden="true" tabindex="-1">
+      <option value="en">English</option>
+      <option value="hi">हिंदी</option>
+      <option value="mr">मराठी</option>
+    </select>
   </header>
 
   <main>
-    <section class="card ask" aria-labelledby="ask-h">
-      <h2 id="ask-h">Ask your question</h2>
-      <div class="input-row">
-        <textarea id="question" rows="3" maxlength="600"
-          placeholder="e.g. I have 20 quintals of onion near Lasalgaon. Should I sell today or wait, and where?"></textarea>
-        <button id="mic" class="mic" type="button" aria-label="Speak your question" title="Tap to speak, tap again to stop">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12z"/></svg>
-        </button>
-      </div>
-      <p id="mic-status" class="hint" aria-live="polite"></p>
+    <section class="hero" aria-labelledby="hero-h">
+      <div class="hero-copy">
+        <h1 id="hero-h" data-i18n="heroTitle"></h1>
+        <p class="hero-sub" data-i18n="tag"></p>
 
-      <div class="fields">
-        <label>Quantity <small>(quintals)</small>
-          <input id="qty" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 20" />
-        </label>
-        <label>Transport cost <small>(₹ per km, include return trip if charged)</small>
-          <input id="rate" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 40" />
-        </label>
+        <div class="slip">
+          <label class="q-label" for="question" data-i18n="askTitle"></label>
+          <div class="input-row">
+            <textarea id="question" rows="3" maxlength="600"></textarea>
+            <button id="mic" class="mic" type="button" data-i18n-aria="micAria" data-i18n-title="micAria">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12z"/></svg>
+              <span class="mic-label" data-i18n="micLabel"></span>
+            </button>
+          </div>
+          <p id="mic-status" class="status" aria-live="polite"></p>
+
+          <div class="fields">
+            <label><span data-i18n="qtyLabel"></span> <small data-i18n="qtyUnit"></small>
+              <input id="qty" type="number" min="1" step="1" inputmode="numeric" placeholder="20" />
+            </label>
+            <label><span data-i18n="rateLabel"></span> <small data-i18n="rateUnit"></small>
+              <input id="rate" type="number" min="0" step="1" inputmode="numeric" placeholder="40" />
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="ask" class="primary" type="button" data-i18n="getAnswer"></button>
+            <button id="example" class="ghost" type="button" data-i18n="example"></button>
+            <label class="auto"><input id="auto-read" type="checkbox" /> <span data-i18n="autoRead"></span></label>
+          </div>
+        </div>
       </div>
 
-      <div class="actions">
-        <button id="ask" class="primary" type="button">Get my answer</button>
-        <button id="example" class="ghost" type="button">Try the Lasalgaon example</button>
-      </div>
+      <figure class="hero-media" id="sky-panel">
+        <video id="hero-video" muted loop playsinline preload="none" poster="/static/media/hero-poster.jpg" aria-hidden="true" tabindex="-1" hidden></video>
+        <canvas id="sky" aria-hidden="true"></canvas>
+        <svg class="rings" viewBox="0 0 400 520" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+          <ellipse cx="200" cy="400" rx="168" ry="176" class="flesh" />
+          <g fill="none" stroke-width="2">
+            <ellipse cx="200" cy="400" rx="168" ry="176" class="r1" />
+            <ellipse cx="200" cy="400" rx="136" ry="170" class="r2" />
+            <ellipse cx="200" cy="400" rx="102" ry="162" class="r3" />
+            <ellipse cx="200" cy="400" rx="68"  ry="152" class="r4" />
+            <ellipse cx="200" cy="400" rx="34"  ry="140" class="r5" />
+            <path d="M200 224 C 194 190, 210 170, 222 140" class="r1" />
+          </g>
+        </svg>
+        <figcaption id="sky-read" class="sky-read" hidden>
+          <span class="sky-where"></span>
+          <span class="sky-vals"></span>
+          <span class="sky-line"></span>
+          <span class="sky-src"></span>
+        </figcaption>
+        <span class="hero-word" lang="mr" aria-hidden="true">कांदा</span>
+        <span id="media-credit" class="media-credit" hidden data-i18n="mediaCredit"></span>
+      </figure>
     </section>
 
-    <section id="working" class="card working" hidden aria-live="polite">
-      <div class="spinner" aria-hidden="true"></div>
-      <div>
-        <strong>Checking live data…</strong>
-        <ol class="plan">
-          <li>Find your village</li>
-          <li>Get the 7-day rain and humidity forecast</li>
-          <li>Pull today's official mandi prices nearby</li>
-          <li>Work out the price left after transport</li>
-          <li>Check every number against the data</li>
-        </ol>
-      </div>
+    <section id="working" class="log" hidden aria-live="polite">
+      <h2 class="log-head"><span class="pulse" aria-hidden="true"></span><span data-i18n="working"></span></h2>
+      <ol id="live" class="live"></ol>
     </section>
 
-    <section id="error" class="card error" hidden role="alert"></section>
+    <section id="error" class="error" hidden role="alert"></section>
 
     <section id="result" hidden>
-      <article class="card verdict">
-        <div class="verdict-head">
-          <span id="rec" class="badge"></span>
-          <span id="grounded" class="pill"></span>
+      <article id="verdict" class="verdict">
+        <div class="verdict-text">
+          <div class="verdict-top">
+            <span id="rec" class="badge"></span>
+            <span id="grounded" class="pill"></span>
+          </div>
+          <h2 id="headline" class="headline"></h2>
+          <p id="answer" class="answer"></p>
+          <ul id="reasons" class="reasons"></ul>
+          <p id="ask-farmer" class="ask-farmer" hidden></p>
+          <div class="verdict-actions">
+            <button id="listen" class="listen" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              <span data-i18n="listen"></span>
+            </button>
+            <span id="listen-status" class="status" aria-live="polite"></span>
+          </div>
+          <p id="elapsed" class="meta"></p>
+          <audio id="player" hidden></audio>
         </div>
-        <p id="answer" class="answer"></p>
-        <ul id="reasons" class="reasons"></ul>
-        <p id="ask-farmer" class="ask-farmer" hidden></p>
-        <div class="verdict-actions">
-          <button id="listen" class="ghost" type="button">▶ Listen</button>
-          <span id="listen-status" class="hint" aria-live="polite"></span>
-          <span id="elapsed" class="hint"></span>
-        </div>
-        <audio id="player" hidden></audio>
+        <div id="money" class="money" hidden></div>
       </article>
 
-      <article class="card">
-        <h3>Nearby mandis <small id="mandi-note"></small></h3>
+      <div id="chips" class="chips"></div>
+
+      <article id="mandi-card" class="board">
+        <header class="board-head">
+          <h2 data-i18n="mandisTitle"></h2>
+          <p id="mandi-note"></p>
+        </header>
         <div class="table-wrap">
           <table id="mandis">
             <thead>
               <tr>
-                <th>#</th><th>Mandi</th><th>Reported</th>
-                <th class="num">Price ₹/qtl</th><th class="num">Distance</th>
-                <th class="num">Transport ₹/qtl</th><th class="num">Net ₹/qtl</th>
+                <th><span class="sr">#</span></th><th data-i18n="thMandi"></th><th data-i18n="thReported"></th>
+                <th class="num" data-i18n="thPrice"></th><th class="num" data-i18n="thDistance"></th>
+                <th class="num" data-i18n="thTransport"></th><th class="num" data-i18n="thNet"></th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
-        <p id="coverage" class="hint" hidden></p>
+        <p id="coverage" class="coverage" hidden></p>
       </article>
 
-      <article class="card">
-        <h3>Next 7 days at your village <small id="weather-note"></small></h3>
+      <article id="weather-card" class="sky">
+        <header class="sky-head">
+          <h2 data-i18n="weatherTitle"></h2>
+          <p id="weather-note"></p>
+        </header>
         <div id="weather" class="weather"></div>
-        <p class="hint">Onions store best below 70% humidity. A rainy day is 2.5 mm of rain or more (IMD definition).</p>
+        <p class="sky-hint" data-i18n="weatherHint"></p>
       </article>
 
-      <details class="card how" open>
-        <summary>How I decided</summary>
-        <ol id="trace" class="trace"></ol>
-      </details>
-
-      <article class="card sources">
-        <h3>Sources</h3>
-        <ul id="sources"></ul>
-      </article>
+      <div class="afterword">
+        <details id="how-card" class="how" open>
+          <summary data-i18n="howTitle"></summary>
+          <ol id="trace" class="trace"></ol>
+        </details>
+        <article id="sources-card" class="sources">
+          <h2 data-i18n="sourcesTitle"></h2>
+          <ul id="sources"></ul>
+        </article>
+      </div>
     </section>
   </main>
 
-  <footer class="foot">
-    Prototype for the Forge buildathon. Advice is informational; prices come from official Agmarknet reports via data.gov.in and can change during the day.
-  </footer>
+  <footer class="foot" data-i18n="footer"></footer>
 
   <script src="/static/app.js" defer></script>
 </body>
