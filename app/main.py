@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import queue
+import threading
 from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -50,6 +53,15 @@ def health() -> dict:
     }
 
 
+HERO_PLACE = {"name": "Lasalgaon", "district": "Nashik", "lat": 20.15, "lon": 74.23}
+
+
+@app.get("/api/sky")
+def sky() -> dict:
+    """Current conditions at Lasalgaon for the home-page sky. Real data or an explicit error, never a guess."""
+    return {"place": HERO_PLACE, **weather.get_current_sky(HERO_PLACE["lat"], HERO_PLACE["lon"])}
+
+
 @app.post("/api/ask")
 def ask(req: AskRequest) -> dict:
     return run_agent(
@@ -57,6 +69,41 @@ def ask(req: AskRequest) -> dict:
         language=req.language,
         quantity_quintals=req.quantity_quintals,
         transport_rate_per_km=req.transport_rate_per_km,
+    )
+
+
+@app.post("/api/ask_stream")
+def ask_stream(req: AskRequest) -> StreamingResponse:
+    """Same as /api/ask, but streams each agent step as it finishes (newline-delimited JSON), then the result."""
+    events: queue.Queue = queue.Queue()
+
+    def work() -> None:
+        try:
+            result = run_agent(
+                req.question,
+                language=req.language,
+                quantity_quintals=req.quantity_quintals,
+                transport_rate_per_km=req.transport_rate_per_km,
+                on_step=lambda step: events.put({"type": "step", "step": step}),
+            )
+            events.put({"type": "result", "result": result})
+        except Exception as exc:  # noqa: BLE001
+            events.put({"type": "error", "error": f"{exc.__class__.__name__}"})
+        finally:
+            events.put(None)
+
+    threading.Thread(target=work, daemon=True).start()
+
+    def stream():
+        while True:
+            item = events.get()
+            if item is None:
+                break
+            yield json.dumps(item, ensure_ascii=False, default=str) + "\n"
+
+    return StreamingResponse(
+        stream(), media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
     )
 
 

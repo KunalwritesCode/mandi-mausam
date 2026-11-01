@@ -88,7 +88,14 @@ def _client() -> OpenAI:
 
 
 def _extra() -> dict[str, Any]:
-    return {"reasoning_effort": settings.llm_reasoning_effort} if settings.llm_reasoning_effort else {}
+    """Extra request fields: the reasoning level and the token budget."""
+    effort = (settings.llm_reasoning_effort or "").strip().lower()
+    out: dict[str, Any] = {"max_tokens": settings.llm_max_tokens}
+    if effort in ("none", "off", "null", "disabled"):
+        out["extra_body"] = {"reasoning_effort": None}   # sent as JSON null: thinking switched off
+    elif effort:
+        out["reasoning_effort"] = effort
+    return out
 
 
 def _llm_error_detail(exc: Exception) -> str:
@@ -103,19 +110,40 @@ def _llm_error_detail(exc: Exception) -> str:
 _THINK_RE = re.compile(r"<think>.*?(</think>|$)", re.S | re.I)
 
 
+def _salvage(text: str) -> dict[str, Any] | None:
+    """Last resort for a reply cut off mid-JSON: recover the recommendation and the answer text."""
+    rec = re.search(r'"recommendation"\s*:\s*"([A-Z_]+)"', text)
+    ans = re.search(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)', text, re.S)
+    if not (rec and ans and ans.group(1).strip()):
+        return None
+    raw = ans.group(1)
+    try:
+        answer = json.loads('"' + raw + '"', strict=False)
+    except json.JSONDecodeError:
+        answer = raw
+    return {"recommendation": rec.group(1), "best_mandi": None, "answer": answer.strip(), "reasons": [], "ask_farmer": None}
+
+
 def _parse_json(text: str) -> dict[str, Any] | None:
-    """Pull the JSON object out of a model reply (tolerates <think> blocks and ``` fences)."""
+    """Pull the JSON object out of a model reply.
+
+    Tolerates <think> blocks, ``` fences, text before or after the object, raw newlines inside strings,
+    and (as a last resort) a reply cut off before the closing brace.
+    """
     if not text:
         return None
     text = _THINK_RE.sub("", text)
-    m = re.search(r"\{.*\}", text, flags=re.S)
-    if not m:
-        return None
-    try:
-        out = json.loads(m.group(0))
-    except json.JSONDecodeError:
-        return None
-    return out if isinstance(out, dict) else None
+    dec = json.JSONDecoder(strict=False)
+    pos = text.find("{")
+    while pos != -1:
+        try:
+            obj, _ = dec.raw_decode(text[pos:])
+        except json.JSONDecodeError:
+            obj = None
+        if isinstance(obj, dict) and ("answer" in obj or "recommendation" in obj):
+            return obj
+        pos = text.find("{", pos + 1)
+    return _salvage(text)
 
 
 def _llm_view(name: str, result: dict[str, Any]) -> dict[str, Any]:
@@ -184,7 +212,7 @@ def _fallback_answer(tr: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
     best = fresh[0]
     s = (tr.get("get_weather_outlook") or {}).get("summary") or {}
     name = str(best.get("market", "")).strip()
-    parts = [f"The best reported price near you is {best.get('modal_price'):.0f} rupees per quintal at {name}"
+    parts = [f"The highest reported price is {best.get('modal_price'):.0f} rupees per quintal at {name}"
              + (f", {best['distance_km']} km away" if best.get("distance_km") is not None else "")
              + (f" (reported {best['arrival_date']})." if best.get("arrival_date") else ".")]
     has_net = best.get("net_price_per_quintal_rs") is not None
@@ -219,20 +247,42 @@ def _summarise_tool(name: str, result: dict[str, Any]) -> str:
     return "done"
 
 
+class _LiveTrace(list):
+    """A trace that tells a listener about each step the moment it is recorded (for live progress)."""
+
+    def __init__(self, on_step: Callable[[dict[str, Any]], None]) -> None:
+        super().__init__()
+        self._on_step = on_step
+
+    def append(self, item: dict[str, Any]) -> None:  # type: ignore[override]
+        super().append(item)
+        try:
+            self._on_step(dict(item))
+        except Exception:  # noqa: BLE001 - a broken listener must never break an answer
+            pass
+
+
 def run_agent(
     question: str,
     language: str = "en",
     quantity_quintals: float | None = None,
     transport_rate_per_km: float | None = None,
+    on_step: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    """Run the full plan -> tools -> answer -> check loop."""
+    """Run the full plan -> tools -> answer -> check loop. `on_step` is called with each trace step as it happens."""
     started = time.time()
-    trace: list[dict[str, Any]] = []
+    trace: list[dict[str, Any]] = _LiveTrace(on_step) if on_step else []
     tool_results: dict[str, dict[str, Any]] = {}
 
     q, err = guardrails.clean_question(question)
     if err:
         return {"ok": False, "error": err, "trace": trace}
+    ask = guardrails.precheck(q, quantity_quintals, language)
+    if ask:
+        trace.append({"step": "precheck", "ok": True, "detail": "Not enough information yet, so asked the farmer instead of guessing"})
+        return {"ok": True, "recommendation": "NEED_INFO", "best_mandi": None, "answer": ask, "reasons": [],
+                "ask_farmer": ask, "grounded": True, "unsupported_numbers": [], "place": None, "weather": None,
+                "mandis": None, "trace": trace, "elapsed_s": 0.0, "model": settings.llm_model}
     if not settings.llm_api_key:
         return {"ok": False, "error": "No AI model key is set on the server (LLM_API_KEY or GEMINI_API_KEY).", "trace": trace}
 
@@ -252,6 +302,7 @@ def run_agent(
     last_finish = None
 
     for step in range(settings.llm_max_steps):
+        t_llm = time.time()
         try:
             resp = client.chat.completions.create(
                 model=settings.llm_model,
@@ -267,6 +318,12 @@ def run_agent(
 
         msg = resp.choices[0].message
         last_finish = getattr(resp.choices[0], "finish_reason", None)
+        wanted = [c.function.name for c in (msg.tool_calls or [])]
+        trace.append({
+            "step": "llm_call", "ok": last_finish != "length", "ms": round((time.time() - t_llm) * 1000),
+            "detail": (f"decided to call {', '.join(wanted)}" if wanted else "wrote the answer")
+                      + (" (cut off: hit the token limit)" if last_finish == "length" else ""),
+        })
         # Keep only the standard assistant fields. tool_calls are kept exactly as returned,
         # because Gemini 3 stores its thought signatures inside them. Provider-specific extras
         # (e.g. reasoning_content) are dropped so any OpenAI-compatible server accepts the history.

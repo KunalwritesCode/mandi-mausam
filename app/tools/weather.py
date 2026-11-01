@@ -86,3 +86,32 @@ def summarise(data: dict[str, Any]) -> dict[str, Any]:
             ),
         },
     }
+
+
+def get_current_sky(lat: float, lon: float) -> dict[str, Any]:
+    """Conditions right now (Open-Meteo 'current' block), used to draw the live sky on the home page."""
+    params = {
+        "latitude": round(float(lat), 4),
+        "longitude": round(float(lon), 4),
+        "current": "temperature_2m,relative_humidity_2m,precipitation,cloud_cover,wind_speed_10m,is_day",
+        "timezone": "Asia/Kolkata",
+    }
+    try:
+        data, src = fetch_json(
+            source_name="Open-Meteo Forecast API", url=FORECAST_URL, params=params, ttl_s=900
+        )
+        cur = data["current"]
+        return {
+            "ok": True,
+            "time": cur["time"],
+            "temperature_c": cur["temperature_2m"],
+            "humidity_pct": cur["relative_humidity_2m"],
+            "rain_mm": cur["precipitation"],
+            "cloud_cover_pct": cur["cloud_cover"],
+            "wind_kmh": cur["wind_speed_10m"],
+            "is_day": bool(cur["is_day"]),
+            "humid_for_storage": cur["relative_humidity_2m"] > settings.storage_rh_limit_pct,
+            "source": src,
+        }
+    except (UpstreamError, KeyError, TypeError) as exc:
+        return {"ok": False, "error": str(exc)}

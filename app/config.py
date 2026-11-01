@@ -40,8 +40,12 @@ class Settings:
     llm_model: str = field(default_factory=lambda: _env("LLM_MODEL") or _env("GEMINI_MODEL") or ("sarvam-105b" if "sarvam" in _env("LLM_BASE_URL").lower() else "gemini-3.8-flash"))
     llm_max_steps: int = field(default_factory=lambda: int(_env("AGENT_MAX_STEPS", "6")))
     llm_timeout_s: float = field(default_factory=lambda: float(_env("LLM_TIMEOUT_S", "45")))
-    # "", "low", "medium", "high" (Gemini 3 models). Empty = model default.
-    llm_reasoning_effort: str = field(default_factory=lambda: _env("LLM_REASONING_EFFORT", ""))
+    # "none" turns thinking off (fastest; the default for Sarvam, whose thinking mode is on by default and can
+    # use up the whole token budget). "low"/"medium"/"high" set a level. Empty = the model's own default.
+    llm_reasoning_effort: str = field(
+        default_factory=lambda: _env("LLM_REASONING_EFFORT", "none" if "sarvam" in _env("LLM_BASE_URL").lower() else "")
+    )
+    llm_max_tokens: int = field(default_factory=lambda: int(_env("LLM_MAX_TOKENS", "1500")))
 
     # --- Mandi prices: data.gov.in Open Government Data API (Agmarknet feed) ---
     data_gov_api_key: str = field(default_factory=lambda: _env("DATA_GOV_IN_API_KEY"))
