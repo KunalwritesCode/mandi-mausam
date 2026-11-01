@@ -6,3 +6,5 @@ venv/
 cache.sqlite3
 .pytest_cache/
 .DS_Store
+# personal build notes, kept locally
+PROBLEM_LOG.md

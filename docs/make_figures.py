@@ -1,4 +1,4 @@
-"""Builds the animated SVG figures used in README.md and PROBLEM_LOG.md.
+"""Builds the animated SVG figures used in README.md.
 
 Every number below is copied from a cited source (listed next to it), or computed from
 those numbers. The one worked example (net-price.svg) is labelled as illustrative.

@@ -8,7 +8,7 @@ An honest answer for the farmer standing next to her onion store.<br>
 Live mandi prices, the week's weather and the money left after transport, in English, हिंदी or मराठी.<br>
 **Every number on the screen is traced back to its source.**
 
-[Live app](https://mandi-mausam.vercel.app) · [The Problem Log](PROBLEM_LOG.md) · [Demo video](#) · [Pitch deck](#)
+[Live app](https://mandi-mausam.vercel.app) · [Field test of Bharat-VISTAAR](docs/field-tests/bharat-vistaar/) · [Demo video](#) · [Pitch deck](#)
 
 </div>
 
@@ -39,6 +39,8 @@ Prices move faster than a farmer can check them. Selling too early can leave mon
 Waiting is not free either. Stored onions spoil when the air is too humid, so the weather forecast is part of the price decision.
 
 The pieces of information exist: mandi prices on one website, weather on another, the road on a map, transport costs in the farmer's head. Nobody puts them together into one answer she can trust.
+
+The government's new AI helpline, Bharat-VISTAAR (155261), is voice-first, so farmers can use it without typing. We called it three times in Marathi with sell-or-hold questions for onion, banana, jowar and rice. Each time it said the price for that mandi and day was not available, and none of the calls ended with a price, a comparison or a decision. The transcripts and what we took from them are in [docs/field-tests/bharat-vistaar](docs/field-tests/bharat-vistaar/).
 
 ## What Mandi-Mausam does
 
@@ -146,7 +148,7 @@ python -m pytest -q       # 33 tests
 
 `curl localhost:8000/api/health` makes one live weather call, so you can see the data path is working.
 
-**Deploy on Vercel in Mumbai (free Hobby plan):** import this repo, set the Application Preset to **Other**, and add `SARVAM_API_KEY`, `DATA_GOV_IN_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` and `CACHE_PATH=/tmp/cache.sqlite3`. `vercel.json` pins the function to Mumbai (`bom1`). That matters: data.gov.in refuses connections from servers outside India, which we found the hard way (see the Problem Log, row 14). Open `/api/health` to confirm that both the weather and the mandi price services are reachable.
+**Deploy on Vercel in Mumbai (free Hobby plan):** import this repo, set the Application Preset to **Other**, and add `SARVAM_API_KEY`, `DATA_GOV_IN_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` and `CACHE_PATH=/tmp/cache.sqlite3`. `vercel.json` pins the function to Mumbai (`bom1`). That matters: data.gov.in refuses connections from servers outside India, which we found the hard way when our first deployment, hosted outside India, could not fetch a single price. Open `/api/health` to confirm that both the weather and the mandi price services are reachable.
 
 ## What we have not solved yet
 
@@ -156,11 +158,9 @@ python -m pytest -q       # 33 tests
 - **No price forecasts, by design.** A next step is adding the past month's prices and arrival volumes as evidence, not predictions.
 - **Next:** WhatsApp and phone-call access for farmers without smartphones, more crops, and truckload pooling for Farmer Producer Organisations.
 
-## How it was built
+## Credits
 
-The whole build, including every wrong turn, is in **[The Problem Log](PROBLEM_LOG.md)**: what we tested, what failed, why, and how we fixed it.
-
-**Credits.** The home-page footage was generated with Kling AI and is labelled on screen as illustrative; it carries no data. The page uses the open-source fonts Teko and Mukta (SIL Open Font License, licences in `static/fonts/`), self-hosted so the demo makes no outside font requests.
+The home-page footage was generated with Kling AI and is labelled on screen as illustrative; it carries no data. The page uses the open-source fonts Teko and Mukta (SIL Open Font License, licences in `static/fonts/`), self-hosted so the demo makes no outside font requests.
 
 ## Sources
 
