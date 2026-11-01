@@ -9,6 +9,7 @@ def test_market_name_cleaning():
     assert clean_market_name("Lasalgaon(Niphad)") == ["Lasalgaon", "Niphad"]
     assert clean_market_name("APMC Lasalgaon ") == ["Lasalgaon"]
     assert clean_market_name("Mumbai-Onion & Potato Market ")[0].startswith("Mumbai")
+    assert clean_market_name("APMC Chattrapati Sambhajinagar ") == ["Chattrapati Sambhajinagar", "Aurangabad"]
 
 
 def test_record_normalise():

@@ -9,11 +9,12 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GEMINI_MODEL
-        value: gemini-flash-latest
-      - key: DATA_GOV_IN_API_KEY
-        sync: false
+      # AI model: Sarvam-105B through its OpenAI-compatible API (key = SARVAM_API_KEY below)
+      - key: LLM_BASE_URL
+        value: https://api.sarvam.ai/v1
+      - key: LLM_MODEL
+        value: sarvam-105b
       - key: SARVAM_API_KEY
+        sync: false
+      - key: DATA_GOV_IN_API_KEY
         sync: false

@@ -18,17 +18,30 @@ def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
+def _llm_key() -> str:
+    """LLM_API_KEY if set; else the Sarvam key when the model is Sarvam's; else the Gemini key."""
+    explicit = _env("LLM_API_KEY")
+    if explicit:
+        return explicit
+    if "sarvam" in _env("LLM_BASE_URL").lower():
+        return _env("SARVAM_API_KEY")
+    return _env("GEMINI_API_KEY")
+
+
 @dataclass(frozen=True)
 class Settings:
     # --- LLM (any OpenAI-compatible endpoint; Gemini by default) ---
-    llm_api_key: str = field(default_factory=lambda: _env("GEMINI_API_KEY"))
+    llm_api_key: str = field(default_factory=lambda: _llm_key())
     llm_base_url: str = field(
         default_factory=lambda: _env(
             "LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"
         )
     )
-    llm_model: str = field(default_factory=lambda: _env("GEMINI_MODEL", "gemini-flash-latest"))
+    llm_model: str = field(default_factory=lambda: _env("LLM_MODEL") or _env("GEMINI_MODEL", "gemini-flash-latest"))
     llm_max_steps: int = field(default_factory=lambda: int(_env("AGENT_MAX_STEPS", "6")))
+    llm_timeout_s: float = field(default_factory=lambda: float(_env("LLM_TIMEOUT_S", "45")))
+    # "", "low", "medium", "high" (Gemini 3 models). Empty = model default.
+    llm_reasoning_effort: str = field(default_factory=lambda: _env("LLM_REASONING_EFFORT", ""))
 
     # --- Mandi prices: data.gov.in Open Government Data API (Agmarknet feed) ---
     data_gov_api_key: str = field(default_factory=lambda: _env("DATA_GOV_IN_API_KEY"))

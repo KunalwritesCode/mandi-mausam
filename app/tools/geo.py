@@ -21,6 +21,17 @@ OSRM_TABLE = "https://router.project-osrm.org/table/v1/driving/"
 
 _DAY = 24 * 3600
 
+# Agmarknet uses the current official names of cities renamed in 2022-2024; GeoNames still has the old ones.
+PLACE_ALIASES = {
+    "chhatrapati sambhajinagar": "Aurangabad",
+    "chattrapati sambhajinagar": "Aurangabad",
+    "chhatrapati sambhaji nagar": "Aurangabad",
+    "sambhajinagar": "Aurangabad",
+    "dharashiv": "Osmanabad",
+    "ahilyanagar": "Ahmednagar",
+    "ahilya nagar": "Ahmednagar",
+}
+
 
 def clean_market_name(name: str) -> list[str]:
     """Turn an Agmarknet market name into place-name candidates.
@@ -38,6 +49,10 @@ def clean_market_name(name: str) -> list[str]:
         c = re.sub(r"\s+", " ", c).strip(" .-")
         if len(c) >= 3 and c.lower() not in {x.lower() for x in cleaned}:
             cleaned.append(c)
+    for c in list(cleaned):
+        alias = PLACE_ALIASES.get(c.lower())
+        if alias and alias.lower() not in {x.lower() for x in cleaned}:
+            cleaned.append(alias)
     return cleaned
 
 

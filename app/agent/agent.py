@@ -11,7 +11,7 @@ import re
 import time
 from typing import Any, Callable
 
-from openai import OpenAI, OpenAIError
+from openai import APIStatusError, APITimeoutError, OpenAI, OpenAIError
 
 from app.agent import guardrails
 from app.agent.prompts import system_prompt
@@ -83,7 +83,21 @@ RECOMMENDATIONS = {"SELL_NOW", "HOLD", "NEED_INFO", "CANNOT_HELP"}
 
 
 def _client() -> OpenAI:
-    return OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url, timeout=40, max_retries=1)
+    # No hidden SDK retries: a hung model should fail fast and visibly.
+    return OpenAI(api_key=settings.llm_api_key, base_url=settings.llm_base_url, timeout=settings.llm_timeout_s, max_retries=0)
+
+
+def _extra() -> dict[str, Any]:
+    return {"reasoning_effort": settings.llm_reasoning_effort} if settings.llm_reasoning_effort else {}
+
+
+def _llm_error_detail(exc: Exception) -> str:
+    """A short, secret-free description of why the model call failed."""
+    if isinstance(exc, APITimeoutError):
+        return f"AI model timed out after {settings.llm_timeout_s:.0f}s (model: {settings.llm_model})"
+    if isinstance(exc, APIStatusError):
+        return f"AI model rejected the request: HTTP {exc.status_code}: {str(exc)[:200]}"
+    return f"AI model error: {exc.__class__.__name__}: {str(exc)[:200]}"
 
 
 def _parse_json(text: str) -> dict[str, Any] | None:
@@ -127,7 +141,7 @@ def run_agent(
     if err:
         return {"ok": False, "error": err, "trace": trace}
     if not settings.llm_api_key:
-        return {"ok": False, "error": "GEMINI_API_KEY is not set on the server.", "trace": trace}
+        return {"ok": False, "error": "No AI model key is set on the server (LLM_API_KEY or GEMINI_API_KEY).", "trace": trace}
 
     extras = []
     if quantity_quintals is not None:
@@ -151,16 +165,24 @@ def run_agent(
                 tools=TOOL_SCHEMAS,
                 tool_choice="auto",
                 temperature=0.2,
+                **_extra(),
             )
         except OpenAIError as exc:
-            trace.append({"step": "llm", "ok": False, "detail": f"AI model error: {exc.__class__.__name__}"})
+            trace.append({"step": "llm", "ok": False, "detail": _llm_error_detail(exc)})
             return {"ok": False, "error": "The AI model is not responding. Please try again.", "trace": trace}
 
         msg = resp.choices[0].message
-        # Keep the assistant turn as returned (Gemini needs its thought signatures back),
-        # minus empty fields some OpenAI-compatible servers reject.
-        turn = {k: v for k, v in msg.model_dump(exclude_none=True).items() if v not in ([], {}, "")}
-        turn["role"] = "assistant"
+        # Keep only the standard assistant fields. tool_calls are kept exactly as returned,
+        # because Gemini 3 stores its thought signatures inside them. Provider-specific extras
+        # (e.g. reasoning_content) are dropped so any OpenAI-compatible server accepts the history.
+        raw = msg.model_dump(exclude_none=True)
+        turn: dict[str, Any] = {"role": "assistant"}
+        if raw.get("content"):
+            turn["content"] = raw["content"]
+        if raw.get("tool_calls"):
+            turn["tool_calls"] = raw["tool_calls"]
+        if "content" not in turn and "tool_calls" not in turn:
+            turn["content"] = ""
         messages.append(turn)
 
         if not msg.tool_calls:
@@ -235,7 +257,7 @@ def run_agent(
             }
         )
         try:
-            resp = client.chat.completions.create(model=settings.llm_model, messages=messages, temperature=0)
+            resp = client.chat.completions.create(model=settings.llm_model, messages=messages, temperature=0, **_extra())
             fixed = _parse_json(resp.choices[0].message.content or "")
         except OpenAIError:
             fixed = None

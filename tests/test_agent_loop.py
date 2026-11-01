@@ -91,3 +91,35 @@ def test_grounding_self_correction(monkeypatch, fake_tools):
     out = A.run_agent("Onion near Lasalgaon, sell?", "en")
     assert out["grounded"] and "3,900" in out["answer"]
     assert any(t["step"] == "grounding_check" and not t["ok"] for t in out["trace"])
+
+
+def test_empty_final_reply_is_reasked(monkeypatch, fake_tools):
+    script = [
+        _Msg(tool_calls=[_tool_call(1, "find_place", {"query": "Lasalgaon"})]),
+        _Msg(tool_calls=[_tool_call(2, "compare_mandis", {"commodity": "Onion", "state": "Maharashtra",
+                                                          "origin_lat": 20.15, "origin_lon": 74.23})]),
+        _Msg(content=""),                                                        # model returns nothing
+        _final("Sell today at Lasalgaon for 3,900 per quintal, it is 4.2 km away."),  # re-ask works
+    ]
+    monkeypatch.setattr(A, "_client", lambda: FakeClient(script))
+    out = A.run_agent("Onion near Lasalgaon, sell?", "en")
+    assert out["ok"] and out["grounded"] and "Lasalgaon" in out["answer"]
+    assert any(t["step"] == "format" and t["ok"] for t in out["trace"])
+
+
+def test_plain_summary_when_model_gives_nothing(monkeypatch, fake_tools):
+    script = [
+        _Msg(tool_calls=[_tool_call(1, "find_place", {"query": "Lasalgaon"})]),
+        _Msg(tool_calls=[_tool_call(2, "compare_mandis", {"commodity": "Onion", "state": "Maharashtra",
+                                                          "origin_lat": 20.15, "origin_lon": 74.23})]),
+        _Msg(content=""), _Msg(content=""), _Msg(content=""),
+    ]
+    monkeypatch.setattr(A, "_client", lambda: FakeClient(script))
+    out = A.run_agent("Onion near Lasalgaon, sell?", "en")
+    assert out["ok"] and "3900" in out["answer"] and out["grounded"]
+    assert out["recommendation"] in {"NEED_INFO", "SELL_NOW"}
+
+
+def test_parse_json_handles_think_blocks_and_fences():
+    raw = '<think>hmm {not json}</think>\n```json\n{"recommendation": "HOLD", "answer": "ok"}\n```'
+    assert A._parse_json(raw) == {"recommendation": "HOLD", "answer": "ok"}
