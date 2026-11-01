@@ -64,6 +64,14 @@ The highest quoted price is not always the best deal. Mandi-Mausam compares mand
 
 Every answer comes with a **"How I decided"** panel listing each step the agent took, and a **Sources** list with the time each one was fetched.
 
+## What you see on screen
+
+- **Live progress.** Each real step (finding the village, checking the weather, comparing mandis) appears the moment the server finishes it, with its time. Nothing is faked to look busy.
+- **One clear answer.** A large "Sell at ..." or "Hold" headline, the rupees per quintal and in total that she keeps (taken straight from the data, not from the model's wording), the report date, road distance and storage risk.
+- **Three languages.** The whole interface and the answer work in English, Hindi and Marathi, and the answer can be read aloud.
+- **Hands-free voice.** Speak the question, and the answer is read back aloud.
+- **A live sky.** The home page shows Lasalgaon's weather right now from Open-Meteo: rain falls only if it is raining there, and mist rises when humidity is above the 70% onion-storage line. If the weather service is down it says so instead of inventing a sky.
+
 ## Under the hood
 
 ```mermaid
@@ -85,18 +93,20 @@ flowchart LR
   GR --> API
   API -- answer + tables + trace + sources --> FE
   FE -- text --> TTS[Sarvam Bulbul text-to-speech]
+  FE -- live sky --> API
+  API --> WX
 ```
 
 | Folder | What lives there |
 | --- | --- |
-| `app/main.py` | Web routes: `/api/ask`, `/api/transcribe`, `/api/speak`, `/api/health`, and the page itself |
+| `app/main.py` | Web routes: `/api/ask_stream` (live step-by-step answer), `/api/ask`, `/api/transcribe`, `/api/speak`, `/api/sky`, `/api/health`, and the page itself |
 | `app/agent/` | The agent loop, its instructions, and the guardrails |
 | `app/tools/` | One module per data source, plus `pricing.py` for the money maths |
 | `app/http.py`, `app/cache.py` | Timeouts, retries, caching of real responses, source attribution |
 | `app/voice.py` | Sarvam speech-to-text and text-to-speech |
 | `static/` | The web page: plain HTML, CSS and JavaScript, no build step |
-| `tests/` | 17 tests covering the maths, parsing, guardrails and the agent loop |
-| `scripts/` | Live connectivity checks for the AI model routes |
+| `tests/` | 26 tests covering the maths, parsing, guardrails, live-sky reading and the agent loop |
+| `scripts/` | Live checks for the AI model and voice routes, and `run_edge_cases.py`, our edge-case test run (writes `docs/edge_case_report.md`) |
 | `docs/` | The figures in this README and how they are made (`make_figures.py`) |
 
 ### Data sources (all live, nothing stored in advance)
@@ -125,13 +135,13 @@ The cache keeps **only real API responses**, each with the time it was fetched. 
 ## Run it yourself
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/mandi-mausam && cd mandi-mausam
+git clone https://github.com/KunalwritesCode/mandi-mausam && cd mandi-mausam
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env      # add your data.gov.in and Sarvam keys
 uvicorn app.main:app --reload
 # open http://localhost:8000
-python -m pytest -q       # 17 tests
+python -m pytest -q       # 26 tests
 ```
 
 `curl localhost:8000/api/health` makes one live weather call, so you can see the data path is working.
@@ -148,6 +158,8 @@ python -m pytest -q       # 17 tests
 ## How it was built
 
 The whole build, including every wrong turn, is in **[The Problem Log](PROBLEM_LOG.md)**: what we tested, what failed, why, and how we fixed it.
+
+**Credits.** The home-page footage was generated with Kling AI and is labelled on screen as illustrative; it carries no data. The page uses the open-source fonts Teko and Mukta (SIL Open Font License, licences in `static/fonts/`), self-hosted so the demo makes no outside font requests.
 
 ## Sources
 

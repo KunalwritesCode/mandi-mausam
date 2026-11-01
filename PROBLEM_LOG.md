@@ -101,6 +101,10 @@ We built Mandi-Mausam between the evening of 31 October and the afternoon of 1 N
 | 7 | 1 Nov, ~12:02 PM | First full run: every tool worked, but the answer card was empty. | The model's final reply was not usable JSON. | Three layers: clean the reply; if still unusable, ask again in strict JSON mode; if that fails too, show a plain summary built directly from the live data and say so. | Three new tests; 17 of 17 pass. |
 | 8 | 1 Nov, ~12:02 PM | Only 5 onion price reports in all of Maharashtra by midday, none from Nashik. | It was Sunday; few mandis report, and this feed carries the current day. | We show the date of every price, rank fresh reports first, and never fill a gap with a guess. | The app showed the three Pune mandis that had reported, each marked "1 Nov". |
 | 9 | 1 Nov, ~12:02 PM | "APMC Chattrapati Sambhajinagar" vanished from the comparison. | The city was renamed from Aurangabad; the map database still uses the old name. | Added a small, documented alias table for three renamed places (Aurangabad, Osmanabad, Ahmednagar). | Unit test: the mandi name now also searches as "Aurangabad"; the state filter keeps the match inside Maharashtra. |
+| 10 | 1 Nov, afternoon | Answers were still empty or took 30 to 70 seconds, even with the three-layer fix. | Sarvam-105B's thinking mode is on by default and spent the 2,048-token budget before writing the answer. | Switched the thinking mode off through a setting, raised the budget to 1,500 answer tokens, and made the JSON reader tolerant of cut-off replies. | A full answer in about 7 seconds; three new tests. |
+| 11 | 1 Nov, afternoon | The "Listen" button did nothing, and the reason was hidden in a side panel. | The voice service returns audio in several chunks; we played only the first, and errors were not shown on the button. | Joined all the chunks and show the status next to the button. | The button now shows its own status; `scripts/check_voice.sh` plays a sample in all three languages. |
+| 12 | 1 Nov, afternoon | Our first edge-case run passed 23 of 30. | Real bugs: legitimate numbers (the Kisan Call Centre helpline, totals like quantity times price) flagged as invented; "sell?" and "0 quintals" made the model invent inputs; one answer said "tomorrow" for a report from today. | Added a pre-check that asks for missing details, allowed totals the code itself derives, and fixed the date wording. | Re-run: 27 of 30 passed; `docs/edge_case_report.md` has every case. |
+| 13 | 1 Nov, evening | On a phone the page scrolled sideways. | One wide table and the 7-day strip stretched the page layout past the screen. | Constrained the layout column, turned the mandi table into one card per mandi on phones, and let only the weather strip scroll inside its own card. | Checked at 390 px wide in English, Hindi and Marathi: the page is exactly one screen wide. |
 
 ---
 
@@ -114,7 +118,8 @@ Some failures are predictable for any AI agent, so we designed against them from
 | Invented numbers | The answer claims "prices will reach ₹5,200 next week". | Every number in the answer must exist in tool data; otherwise one fix-up round, then a visible warning. | `test_grounding_self_correction` |
 | Bad arithmetic | The model miscalculates the money left after transport. | All money maths lives in `pricing.py`; the model only explains. | `test_pricing.py` |
 | Stale prices | An old high price beats today's real one. | Reports older than 3 days are labelled and never ranked above fresh ones. | `test_stale_never_outranks_fresh` |
-| Out-of-scope advice | A farmer asks for a pesticide dose. | The model is instructed to refer to KVK or the Kisan Call Centre. | Planned: our 30-question edge-case set |
+| Out-of-scope advice | A farmer asks for a pesticide dose. | The model is instructed to refer to KVK or the Kisan Call Centre. | Our edge-case run (`scripts/run_edge_cases.py`) |
+| Missing details | A one-word question like "sell?" or "0 quintals" tempts the model to invent a crop, place or amount. | A pre-check asks the farmer for what is missing, in her language, before the model sees the question. | `test_agent_loop.py` (missing inputs never reach the model) |
 
 ---
 
@@ -125,6 +130,8 @@ Some failures are predictable for any AI agent, so we designed against them from
 - **Show the date of every number.** Mandi data is honest but uneven. Showing the date of each report beats hiding gaps.
 - **Never let the AI do arithmetic.** It plans and explains; code calculates.
 - **Never leave the farmer with a blank screen.** A plain answer from the data beats a clever answer that fails.
+- **Read a model's default settings.** Sarvam-105B thinks before it answers by default, and that thinking used up our whole token budget, which is why answers came back empty and took 30 to 70 seconds. Turning it off made answers arrive in about 7 seconds.
+- **Test the edge, not just the happy path.** Our first edge-case run passed 23 of 30; the failures were real bugs (see rows 10 to 13), and fixing them lifted it to 27 of 30.
 
 ---
 
