@@ -105,6 +105,8 @@ We built Mandi-Mausam between the evening of 31 October and the afternoon of 1 N
 | 11 | 1 Nov, afternoon | The "Listen" button did nothing, and the reason was hidden in a side panel. | The voice service returns audio in several chunks; we played only the first, and errors were not shown on the button. | Joined all the chunks and show the status next to the button. | The button now shows its own status; `scripts/check_voice.sh` plays a sample in all three languages. |
 | 12 | 1 Nov, afternoon | Our first edge-case run passed 23 of 30. | Real bugs: legitimate numbers (the Kisan Call Centre helpline, totals like quantity times price) flagged as invented; "sell?" and "0 quintals" made the model invent inputs; one answer said "tomorrow" for a report from today. | Added a pre-check that asks for missing details, allowed totals the code itself derives, and fixed the date wording. | Re-run: 27 of 30 passed; `docs/edge_case_report.md` has every case. |
 | 13 | 1 Nov, evening | On a phone the page scrolled sideways. | One wide table and the 7-day strip stretched the page layout past the screen. | Constrained the layout column, turned the mandi table into one card per mandi on phones, and let only the weather strip scroll inside its own card. | Checked at 390 px wide in English, Hindi and Marathi: the page is exactly one screen wide. |
+| 14 | 1 Nov, evening | Our first public deployment (Render) could not fetch weather or mandi prices. | Open-Meteo rate-limited Render's shared server address (429), and data.gov.in refused every connection with `Connection refused`: Indian government APIs accept only Indian addresses, and Render has no India region. | Added MET Norway as a second real weather source, scrubbed API keys from error messages, and moved the app to Vercel's Mumbai region. The health page now reports both services. | `/api/health` on the live app: weather ok, mandi prices ok. |
+| 15 | 1 Nov, night | On the live app, speaking a question failed with *"Invalid file type: audio/webm;codecs=opus"*. | Browsers record speech as WebM/Opus, but Sarvam's speech-to-text accepts only WAV or MP3. | The page now decodes the recording and re-saves it as 16 kHz mono WAV before sending it. No server change or extra software needed. | On the live app, a recorded WebM clip sent as-is still fails, and the same clip converted to WAV is transcribed word for word in English, Hindi and Marathi. |
 
 ---
 
@@ -131,7 +133,7 @@ Some failures are predictable for any AI agent, so we designed against them from
 - **Never let the AI do arithmetic.** It plans and explains; code calculates.
 - **Never leave the farmer with a blank screen.** A plain answer from the data beats a clever answer that fails.
 - **Read a model's default settings.** Sarvam-105B thinks before it answers by default, and that thinking used up our whole token budget, which is why answers came back empty and took 30 to 70 seconds. Turning it off made answers arrive in about 7 seconds.
-- **Test the edge, not just the happy path.** Our first edge-case run passed 23 of 30; the failures were real bugs (see rows 10 to 13), and fixing them lifted it to 27 of 30.
+- **Test the edge, not just the happy path.** Our first edge-case run passed 23 of 30; the failures were real bugs (see rows 10 to 15), and fixing them lifted it to 27 of 30.
 
 ---
 

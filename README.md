@@ -8,7 +8,7 @@ An honest answer for the farmer standing next to her onion store.<br>
 Live mandi prices, the week's weather and the money left after transport, in English, हिंदी or मराठी.<br>
 **Every number on the screen is traced back to its source.**
 
-[Live app](https://YOUR-RENDER-URL) · [The Problem Log](PROBLEM_LOG.md) · [Demo video](#) · [Pitch deck](#)
+[Live app](https://mandi-mausam.vercel.app) · [The Problem Log](PROBLEM_LOG.md) · [Demo video](#) · [Pitch deck](#)
 
 </div>
 
@@ -105,7 +105,7 @@ flowchart LR
 | `app/http.py`, `app/cache.py` | Timeouts, retries, caching of real responses, source attribution |
 | `app/voice.py` | Sarvam speech-to-text and text-to-speech |
 | `static/` | The web page: plain HTML, CSS and JavaScript, no build step |
-| `tests/` | 26 tests covering the maths, parsing, guardrails, live-sky reading and the agent loop |
+| `tests/` | 33 tests covering the maths, parsing, guardrails, live-sky reading and the agent loop |
 | `scripts/` | Live checks for the AI model and voice routes, and `run_edge_cases.py`, our edge-case test run (writes `docs/edge_case_report.md`) |
 | `docs/` | The figures in this README and how they are made (`make_figures.py`) |
 
@@ -141,15 +141,16 @@ pip install -r requirements-dev.txt
 cp .env.example .env      # add your data.gov.in and Sarvam keys
 uvicorn app.main:app --reload
 # open http://localhost:8000
-python -m pytest -q       # 26 tests
+python -m pytest -q       # 33 tests
 ```
 
 `curl localhost:8000/api/health` makes one live weather call, so you can see the data path is working.
 
-**Deploy on Render (free tier):** push to GitHub, choose **New → Blueprint**, pick this repo (it reads `render.yaml`) and paste the two keys when asked. Free instances sleep when idle, so open `/api/health` a minute before a demo.
+**Deploy on Vercel in Mumbai (free Hobby plan):** import this repo, set the Application Preset to **Other**, and add `SARVAM_API_KEY`, `DATA_GOV_IN_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` and `CACHE_PATH=/tmp/cache.sqlite3`. `vercel.json` pins the function to Mumbai (`bom1`). That matters: data.gov.in refuses connections from servers outside India, which we found the hard way (see the Problem Log, row 14). Open `/api/health` to confirm that both the weather and the mandi price services are reachable.
 
 ## What we have not solved yet
 
+- **Hosting must be in India.** The mandi price API only answers Indian addresses, so the app runs in Mumbai. Weather has a second real source (MET Norway) in case Open-Meteo rate-limits a shared host.
 - **Thin days.** Mandis report on different days, and on Sundays very few do. The app shows what was reported and when, but it cannot conjure a price for a mandi that stayed quiet.
 - **Name matching.** Mandi locations come from matching names on a map. Small yards can be missed; they are counted, never guessed.
 - **No price forecasts, by design.** A next step is adding the past month's prices and arrival volumes as evidence, not predictions.
@@ -167,6 +168,7 @@ The whole build, including every wrong turn, is in **[The Problem Log](PROBLEM_L
 - [Lok Sabha unstarred question 1773, 5 Dec 2024: post-harvest losses (NABCONS 2022)](https://eparlib.sansad.in/bitstream/123456789/2984698/1/AU1773_tyKJYF.pdf)
 - [Free Press Journal, 6 Oct 2026: Lasalgaon onion prices under pressure](https://www.freepressjournal.in/pune/nashik-egyptian-onions-fresh-kharif-arrivals-put-pressure-on-onion-prices)
 - [Deccan Herald: Lasalgaon, Asia's biggest wholesale onion market](https://www.deccanherald.com/india/maharashtra/day-after-protest-over-drop-in-prices-onion-auctions-start-at-lasalgaon-apmc-3441366)
+- [MET Norway Locationforecast 2.0 (backup weather source, CC BY 4.0)](https://api.met.no/weatherapi/locationforecast/2.0/documentation)
 - [UC Davis Postharvest Technology Center: onion storage conditions](https://postharvest.ucdavis.edu/node/8121)
 - [WFLO Commodity Storage Manual: onions](https://www.gcca.org/system/files/WFLO-Commodity-Storage-Manual-2018-Onions%20and%20Onion%20Sets.pdf)
 

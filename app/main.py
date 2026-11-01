@@ -119,7 +119,7 @@ async def transcribe(audio: UploadFile = File(...), language: str | None = Form(
     if len(data) > MAX_AUDIO_BYTES:
         raise HTTPException(413, "Recording too long. Please keep it under 30 seconds.")
     try:
-        return voice.transcribe(data, audio.filename or "speech.webm", audio.content_type or "audio/webm", language)
+        return voice.transcribe(data, audio.filename or "speech.wav", audio.content_type or "audio/wav", language)
     except voice.VoiceError as exc:
         raise HTTPException(502, str(exc)) from exc
 
