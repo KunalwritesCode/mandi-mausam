@@ -52,6 +52,17 @@
           </div>
           <p id="mic-status" class="status" aria-live="polite"></p>
 
+          <div class="place-row">
+            <label for="place" data-i18n="placeLabel"></label>
+            <div class="place-pick">
+              <select id="place"></select>
+              <input id="place-other" type="text" maxlength="80" autocomplete="off" hidden />
+              <button id="place-find" class="ghost" type="button" data-i18n="placeFind" hidden></button>
+            </div>
+            <p id="place-status" class="status" aria-live="polite"></p>
+            <p id="sky-mini" class="sky-mini" aria-live="polite" hidden></p>
+          </div>
+
           <div class="fields">
             <label><span data-i18n="qtyLabel"></span> <small data-i18n="qtyUnit"></small>
               <input id="qty" type="number" min="1" step="1" inputmode="numeric" placeholder="20" />
@@ -84,7 +95,7 @@
           </g>
         </svg>
         <figcaption id="sky-read" class="sky-read" hidden>
-          <span class="sky-where"></span>
+          <span class="sky-head"><span class="sky-where"></span><button id="sky-change" class="sky-change" type="button" data-i18n="placeChange"></button></span>
           <span class="sky-vals"></span>
           <span class="sky-line"></span>
           <span class="sky-src"></span>

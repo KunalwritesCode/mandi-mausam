@@ -72,7 +72,8 @@ Every answer comes with a **"How I decided"** panel listing each step the agent 
 - **One clear answer.** A large "Sell at ..." or "Hold" headline, the rupees per quintal and in total that she keeps (taken straight from the data, not from the model's wording), the report date, road distance and storage risk.
 - **Three languages.** The whole interface and the answer work in English, Hindi and Marathi, and the answer can be read aloud.
 - **Hands-free voice.** Speak the question, and the answer is read back aloud.
-- **A live sky.** The home page shows Lasalgaon's weather right now from Open-Meteo: rain falls only if it is raining there, and mist rises when humidity is above the 70% onion-storage line. If the weather service is down it says so instead of inventing a sky.
+- **Her own village.** She picks her district from a list of all 36 in Maharashtra (named in her language) or types her village. The weather card and the example question follow her choice, and after she asks about any village, the card switches to it.
+- **A live sky.** The home page shows the weather right now for her chosen place, from Open-Meteo: rain falls only if it is raining there, and mist rises when humidity is above the 70% onion-storage line. If the weather service is down it says so instead of inventing a sky.
 
 ## Under the hood
 
@@ -101,13 +102,13 @@ flowchart LR
 
 | Folder | What lives there |
 | --- | --- |
-| `app/main.py` | Web routes: `/api/ask_stream` (live step-by-step answer), `/api/ask`, `/api/transcribe`, `/api/speak`, `/api/sky`, `/api/health`, and the page itself |
+| `app/main.py` | Web routes: `/api/ask_stream` (live step-by-step answer), `/api/ask`, `/api/transcribe`, `/api/speak`, `/api/sky` (weather now, for any place in India), `/api/place` (find a place in Maharashtra), `/api/health`, and the page itself |
 | `app/agent/` | The agent loop, its instructions, and the guardrails |
 | `app/tools/` | One module per data source, plus `pricing.py` for the money maths |
 | `app/http.py`, `app/cache.py` | Timeouts, retries, caching of real responses, source attribution |
 | `app/voice.py` | Sarvam speech-to-text and text-to-speech |
 | `static/` | The web page: plain HTML, CSS and JavaScript, no build step |
-| `tests/` | 33 tests covering the maths, parsing, guardrails, live-sky reading and the agent loop |
+| `tests/` | 34 tests covering the maths, parsing, guardrails, live-sky reading and the agent loop |
 | `scripts/` | Live checks for the AI model and voice routes, and `run_edge_cases.py`, our edge-case test run (writes `docs/edge_case_report.md`) |
 | `docs/` | The figures in this README and how they are made (`make_figures.py`) |
 
@@ -143,7 +144,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env      # add your data.gov.in and Sarvam keys
 uvicorn app.main:app --reload
 # open http://localhost:8000
-python -m pytest -q       # 33 tests
+python -m pytest -q       # 34 tests
 ```
 
 `curl localhost:8000/api/health` makes one live weather call, so you can see the data path is working.

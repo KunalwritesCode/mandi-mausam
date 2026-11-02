@@ -10,6 +10,7 @@ def test_market_name_cleaning():
     assert clean_market_name("APMC Lasalgaon ") == ["Lasalgaon"]
     assert clean_market_name("Mumbai-Onion & Potato Market ")[0].startswith("Mumbai")
     assert clean_market_name("APMC Chattrapati Sambhajinagar ") == ["Chattrapati Sambhajinagar", "Aurangabad"]
+    assert clean_market_name("Ahmednagar") == ["Ahmednagar", "Ahilyanagar"]
 
 
 def test_record_normalise():
@@ -58,3 +59,25 @@ def test_current_sky_reports_errors_instead_of_guessing(monkeypatch):
     weather._om_down_until = 0.0
     out = weather.get_current_sky(20.15, 74.23)
     assert out["ok"] is False and "timeout" in out["error"]
+
+
+def test_sky_and_place_endpoints(monkeypatch):
+    from fastapi.testclient import TestClient
+    import app.main as m
+    seen = {}
+
+    def fake_sky(lat, lon):
+        seen["sky"] = (lat, lon)
+        return {"ok": True, "humidity_pct": 70}
+
+    monkeypatch.setattr(m.weather, "get_current_sky", fake_sky)
+    monkeypatch.setattr(m.geo, "find_place", lambda q, state=None: {"found": True, "name": "Pune", "district": "Pune",
+                                                                    "state": state, "lat": 18.52, "lon": 73.86, "source": {"name": "x"}})
+    c = TestClient(m.app)
+    assert c.get("/api/sky").json()["place"]["name"] == "Lasalgaon"          # default stays Lasalgaon
+    r = c.get("/api/sky", params={"lat": 18.52, "lon": 73.86}).json()
+    assert seen["sky"] == (18.52, 73.86) and r["place"] == {"lat": 18.52, "lon": 73.86}
+    assert c.get("/api/sky", params={"lat": 51.5, "lon": -0.1}).status_code == 400   # outside India refused
+    p = c.get("/api/place", params={"q": "Pune"}).json()
+    assert p["found"] and p["state"] == "Maharashtra" and p["lat"] == 18.52
+    assert c.get("/api/place", params={"q": ""}).status_code == 422

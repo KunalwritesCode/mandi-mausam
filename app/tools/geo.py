@@ -21,8 +21,11 @@ OSRM_TABLE = "https://router.project-osrm.org/table/v1/driving/"
 
 _DAY = 24 * 3600
 
-# Agmarknet uses the current official names of cities renamed in 2022-2024; GeoNames still has the old ones.
+# Renamed cities: Agmarknet and GeoNames do not always use the same name. Each alias is tried after the
+# original. Checked live on 2 Nov 2026: "Ahmednagar" no longer resolves inside Maharashtra, "Ahilyanagar" does.
 PLACE_ALIASES = {
+    "ahmednagar": "Ahilyanagar",
+    "ahmadnagar": "Ahilyanagar",
     "chhatrapati sambhajinagar": "Aurangabad",
     "chattrapati sambhajinagar": "Aurangabad",
     "chhatrapati sambhaji nagar": "Aurangabad",

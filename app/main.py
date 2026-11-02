@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from app import voice
 from app.agent.agent import run_agent
 from app.config import settings
-from app.tools import mandi, weather
+from app.tools import geo, mandi, weather
 
 STATIC = Path(__file__).resolve().parent.parent / "static"
 MAX_AUDIO_BYTES = 2_000_000  # about 30 s of compressed speech
@@ -60,10 +60,29 @@ def health() -> dict:
 HERO_PLACE = {"name": "Lasalgaon", "district": "Nashik", "lat": 20.15, "lon": 74.23}
 
 
+def _in_india(lat: float, lon: float) -> bool:
+    return 6.0 <= lat <= 37.6 and 68.0 <= lon <= 97.5
+
+
 @app.get("/api/sky")
-def sky() -> dict:
-    """Current conditions at Lasalgaon for the home-page sky. Real data or an explicit error, never a guess."""
-    return {"place": HERO_PLACE, **weather.get_current_sky(HERO_PLACE["lat"], HERO_PLACE["lon"])}
+def sky(lat: float | None = None, lon: float | None = None) -> dict:
+    """Current conditions for the home-page sky: Lasalgaon by default, or the farmer's chosen place.
+    Real data or an explicit error, never a guess."""
+    if lat is None or lon is None:
+        return {"place": HERO_PLACE, **weather.get_current_sky(HERO_PLACE["lat"], HERO_PLACE["lon"])}
+    if not _in_india(lat, lon):
+        raise HTTPException(status_code=400, detail="That location is outside India.")
+    place = {"lat": round(lat, 4), "lon": round(lon, 4)}
+    return {"place": place, **weather.get_current_sky(place["lat"], place["lon"])}
+
+
+@app.get("/api/place")
+def place(q: str = Query(..., min_length=1, max_length=80)) -> dict:
+    """Look up a village, town or district in Maharashtra (Open-Meteo geocoding, then OpenStreetMap)."""
+    r = geo.find_place(q, state="Maharashtra")
+    if not r.get("found"):
+        return {"found": False, "error": r.get("error") or "Not found."}
+    return {k: r.get(k) for k in ("found", "name", "district", "state", "lat", "lon", "source")}
 
 
 @app.post("/api/ask")
